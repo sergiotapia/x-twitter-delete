@@ -11,13 +11,11 @@ async function autoDeleteAllTweets() {
     const headers = {
         'accept': '*/*',
         'accept-language': 'en-US,en;q=0.6',
-        // REPLACE with your authentication bearer token.
-        'authorization': 'Bearer AAAAAAAAAAAAAAAAAAAAANRI~~~~~~',
+        'authorization': 'Bearer AAAAAAAAAAAAAAAAA~~~~~~~~~~~~~~',
         'content-type': 'application/json',
         'origin': 'https://x.com',
         'priority': 'u=1, i',
-        // REPLACE with your username.
-        'referer': 'https://x.com/alkadaemon/with_replies',
+        'referer': 'https://x.com/my-username-123/with_replies',
         'sec-ch-ua': '"Brave";v="137", "Chromium";v="137", "Not/A)Brand";v="24"',
         'sec-ch-ua-arch': '"x86"',
         'sec-ch-ua-bitness': '"64"',
@@ -31,8 +29,7 @@ async function autoDeleteAllTweets() {
         'sec-fetch-site': 'same-origin',
         'sec-gpc': '1',
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
-        // REPLACE with your X-Client-Transaction-Id
-        'x-client-transaction-id': 'Td70fZDfgySCFAwGSaInQ2ttPhiFl5~~~~~~~~',
+        'x-client-transaction-id': 'Td70fZDfgySCFAwGSaInQ2ttPh~~~~~~~~~~~~~~~~',
         'x-csrf-token': '92e67376bd8272cd6609ed4134afe7cc9d53acc146c8f5bf793b84d9b52aebf4380771e83d97fd1dd4ccf7850e3980b8622acb92a8352951d5ef8385cd2a77c7458cfcd70b068616b3eb74970beb94cf',
         'x-twitter-active-user': 'yes',
         'x-twitter-auth-type': 'OAuth2Session',
@@ -50,12 +47,18 @@ async function autoDeleteAllTweets() {
                 if (username !== profileUsername) return null;
 
                 const link = article.querySelector('a[href*="/status/"]');
-                return link?.href.match(/\/status\/(\d+)/)?.[1];
+                const tweetId = link?.href.match(/\/status\/(\d+)/)?.[1];
+
+                // Extract tweet content
+                const tweetTextElement = article.querySelector('[data-testid="tweetText"]');
+                const tweetContent = tweetTextElement ? tweetTextElement.innerText : '[No text content]';
+
+                return tweetId ? { id: tweetId, content: tweetContent } : null;
             })
             .filter(Boolean);
     }
 
-    async function deleteTweet(tweetId) {
+    async function deleteTweet(tweetId, content) {
         try {
             const response = await fetch('https://x.com/i/api/graphql/VaenaVgh5q5ih7kvyVjgtg/DeleteTweet', {
                 method: 'POST',
@@ -72,14 +75,24 @@ async function autoDeleteAllTweets() {
 
             if (response.ok) {
                 console.log(`✅ Deleted tweet ${tweetId}`);
+                console.log(`📝 Content: "${content}"`);
                 totalDeleted++;
+
+                // Remove the tweet element from DOM
+                const tweetElement = document.querySelector(`article[data-testid="tweet"] a[href*="/status/${tweetId}"]`)?.closest('article');
+                if (tweetElement) {
+                    tweetElement.remove();
+                }
+
                 return true;
             } else {
                 console.log(`❌ Failed to delete tweet ${tweetId}: ${response.status}`);
+                console.log(`📝 Content: "${content}"`);
                 return false;
             }
         } catch (error) {
             console.log(`❌ Error deleting tweet ${tweetId}:`, error);
+            console.log(`📝 Content: "${content}"`);
             return false;
         }
     }
@@ -119,10 +132,10 @@ async function autoDeleteAllTweets() {
 
         // Delete each tweet one by one
         for (let i = 0; i < myTweetIds.length; i++) {
-            const tweetId = myTweetIds[i];
-            console.log(`🗑️  Deleting tweet ${i + 1}/${myTweetIds.length}: ${tweetId}`);
+            const tweet = myTweetIds[i];
+            console.log(`🗑️  Deleting tweet ${i + 1}/${myTweetIds.length}: ${tweet.id}`);
 
-            await deleteTweet(tweetId);
+            await deleteTweet(tweet.id, tweet.content);
             await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second between deletions
         }
 
