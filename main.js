@@ -38,24 +38,34 @@ async function autoDeleteAllTweets() {
     };
 
     function getMyTweetIds() {
-        return Array.from(document.querySelectorAll('article[data-testid="tweet"]'))
-            .map(article => {
-                const userLink = article.querySelector('[data-testid="User-Name"] a[href^="/"]');
-                if (!userLink) return null;
+        const allTweetArticles = document.querySelectorAll('article[data-testid*="tweet"]');
+        console.log(`🔍 Found ${allTweetArticles.length} tweet articles on the page.`);
 
-                const username = userLink.getAttribute('href').slice(1);
-                if (username !== profileUsername) return null;
+        const tweets = [];
+        const seenTweetIds = new Set();
 
-                const link = article.querySelector('a[href*="/status/"]');
-                const tweetId = link?.href.match(/\/status\/(\d+)/)?.[1];
+        allTweetArticles.forEach(articleElement => {
+            const links = Array.from(articleElement.querySelectorAll('a[href*="/status/"]'));
+            const permalink = links.find(a => a.href.includes(`/${profileUsername}/status/`) && a.querySelector('time'));
 
-                // Extract tweet content
-                const tweetTextElement = article.querySelector('[data-testid="tweetText"]');
-                const tweetContent = tweetTextElement ? tweetTextElement.innerText : '[No text content]';
+            if (!permalink) {
+                return;
+            }
 
-                return tweetId ? { id: tweetId, content: tweetContent } : null;
-            })
-            .filter(Boolean);
+            const tweetId = permalink.href.match(/\/status\/(\d+)/)?.[1];
+            if (!tweetId || seenTweetIds.has(tweetId)) {
+                return;
+            }
+
+            seenTweetIds.add(tweetId);
+            const tweetTextElement = articleElement.querySelector('[data-testid="tweetText"]');
+            const tweetContent = tweetTextElement ? tweetTextElement.innerText : '[No text content]';
+
+            console.log(`✅ Found your tweet ${tweetId} - "${tweetContent}"`);
+            tweets.push({ id: tweetId, content: tweetContent });
+        });
+
+        return tweets;
     }
 
     async function deleteTweet(tweetId, content) {
